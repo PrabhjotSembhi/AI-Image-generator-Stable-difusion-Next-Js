@@ -3,17 +3,58 @@ import { Button, Heading, TextField, View } from "@aws-amplify/ui-react";
 import { Inter } from '@next/font/google'
 import { SyntheticEvent } from 'react';
 import StandardCardCollection from '@/ui-components/StandardCardCollection';
+import { DataStore } from 'aws-amplify';
+import { Art } from '@/models';
 const inter = Inter({ subsets: ['latin'] })
 
 
-export default function Home() {
-  const handleSubmit = (e:SyntheticEvent) => {
+export default async function Home() {
+
+  const generatePhoto(input: string, negativePrompt: string){
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ prompt: input, negative_prompt: negativePrompt })
+    })
+
+    let photo = await res.json();
+
+    if (res.status !== 200) {
+      console.log('error')
+    } else {
+      await DataStore.save(
+        new Art({
+          negative_prompt: negativePrompt,
+          promt: input,
+          timestamp: new Date().toISOString(),
+          url: photo[0]
+        })
+      )
+    }
+  }
+
+
+
+
+
+  const handleSubmit = (e: SyntheticEvent) => {
     e.preventDefault()
-    const target = event.target as typeof event.target & {
-      prompt: {value: string};
-      negative_promt:  {value: string}
+    const target = e.target as typeof e.target & {
+      prompt: { value: string };
+      negative_promt: { value: string }
 
     }
+
+    if( target.prompt.value.trim() == "" ) return;
+
+    generatePhoto(
+      target.prompt.value.trim(),
+      target.negative_promt.value.trim()
+    );
+    target.prompt.value = "",
+    target.negative_promt.value = ""
   }
   return (
     <>
@@ -27,12 +68,12 @@ export default function Home() {
 
       <form onSubmit={handleSubmit}>
 
-      <TextField label="Prompt"></TextField>
-      <TextField label="Negative Prompt"></TextField>
-      <Button  type='submit' variation='primary'>Submit</Button>
+        <TextField label="Prompt"></TextField>
+        <TextField label="Negative Prompt"></TextField>
+        <Button type='submit' variation='primary'>Submit</Button>
       </form>
 
-    <StandardCardCollection/>
+      <StandardCardCollection />
     </>
   )
 }
